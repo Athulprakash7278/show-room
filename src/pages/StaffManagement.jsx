@@ -50,7 +50,7 @@ export default function StaffManagement() {
     joining_date: "",
     active: true,
     username: "",
-    password: "", // ✅ added password
+    password: "",
   });
 
   // Sorting state
@@ -96,7 +96,7 @@ export default function StaffManagement() {
       joining_date: "",
       active: true,
       username: "",
-      password: "", // ✅ reset password
+      password: "",
     });
     setOpen(true);
   };
@@ -105,14 +105,25 @@ export default function StaffManagement() {
   const handleOpenEdit = (user) => {
     setIsEditing(true);
     setEditUserId(user.id);
-    setFormData(user);
+    // ensure formData has all fields (if firestore doc has fewer keys)
+    setFormData({
+      name: user.name || "",
+      email: user.email || "",
+      phone: user.phone || "",
+      role: user.role || "",
+      salary: user.salary || "",
+      joining_date: user.joining_date || "",
+      active: typeof user.active === "boolean" ? user.active : true,
+      username: user.username || "",
+      password: user.password || "",
+    });
     setOpen(true);
   };
 
   // Save (Add or Update)
   const handleSave = async () => {
     try {
-      // ✅ Validation
+      // Validation
       if (!/^\d{10}$/.test(formData.phone)) {
         alert("Phone number must be exactly 10 digits");
         return;
@@ -130,7 +141,7 @@ export default function StaffManagement() {
         return;
       }
 
-      // ✅ Check unique username when adding
+      // Check unique username when adding
       if (!isEditing) {
         const q = query(
           collection(db, "user"),
@@ -169,7 +180,7 @@ export default function StaffManagement() {
         joining_date: "",
         active: true,
         username: "",
-        password: "", // ✅ reset password
+        password: "",
       });
     } catch (error) {
       console.error("Error saving user:", error);
@@ -178,28 +189,48 @@ export default function StaffManagement() {
 
   // Sort users
   const sortedUsers = [...users].sort((a, b) => {
-    if (sortBy === "username") return a.username.localeCompare(b.username);
-    if (sortBy === "name") return a.name.localeCompare(b.name);
-    if (sortBy === "salary") return Number(a.salary) - Number(b.salary);
+    if (sortBy === "username") return (a.username || "").localeCompare(b.username || "");
+    if (sortBy === "name") return (a.name || "").localeCompare(b.name || "");
+    if (sortBy === "salary") return Number(a.salary || 0) - Number(b.salary || 0);
     if (sortBy === "joining_date")
-      return new Date(a.joining_date) - new Date(b.joining_date);
+      return new Date(a.joining_date || 0) - new Date(b.joining_date || 0);
     return 0;
   });
 
   return (
-    <Box sx={{ p: 3, backgroundColor: "#f9f9e5", minHeight: "100vh" }}>
+    <Box
+      sx={{
+        p: 3,
+        backgroundColor: "#f9f9e5",
+        minHeight: "100vh",
+        // constrain the content so it doesn't feel too wide on large screens
+        maxWidth: "1100px",
+        mx: "auto",
+      }}
+    >
       {/* Header */}
       <Box
         sx={{
           display: "flex",
+          flexDirection: { xs: "column", sm: "row" }, // stack on xs, row on sm+
           justifyContent: "space-between",
-          alignItems: "center",
+          alignItems: { xs: "flex-start", sm: "center" },
           mb: 2,
+          gap: 1,
         }}
       >
         <Typography variant="h4">Staff Management</Typography>
-        <Box sx={{ display: "flex", gap: 2 }}>
-          <FormControl size="small">
+
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap", // allow wrapping on small screens
+            gap: 1,
+            alignItems: "center",
+            mt: { xs: 1, sm: 0 },
+          }}
+        >
+          <FormControl size="small" sx={{ minWidth: 140 }}>
             <InputLabel>Sort By</InputLabel>
             <Select
               value={sortBy}
@@ -212,15 +243,17 @@ export default function StaffManagement() {
               <MenuItem value="joining_date">Joining Date</MenuItem>
             </Select>
           </FormControl>
+
           <Button
-          variant="contained"
-          color="primary"
-          sx={{ marginLeft: "auto" }} // pushes button to right-most side
-          onClick={() => navigate("/attendance")}
-        >
-          Attendance
-        </Button>
-          <Button variant="contained" color="primary" onClick={handleOpenAdd}>
+            variant="contained"
+            color="primary"
+            onClick={() => navigate("/attendance")}
+            sx={{ whiteSpace: "nowrap" }}
+          >
+            Attendance
+          </Button>
+
+          <Button variant="contained" color="primary" onClick={handleOpenAdd} sx={{ whiteSpace: "nowrap" }}>
             Add Staff
           </Button>
         </Box>
@@ -235,27 +268,37 @@ export default function StaffManagement() {
             mb: 2,
             display: "flex",
             flexDirection: "column",
+            borderRadius: 1,
           }}
         >
           {/* Username row */}
           <Box
             sx={{
               display: "flex",
-              alignItems: "center",
+              alignItems: { xs: "flex-start", sm: "center" },
               justifyContent: "space-between",
+              flexDirection: { xs: "column", sm: "row" }, // stack on mobile
+              gap: 1,
             }}
           >
             <Typography
               variant="h6"
-              sx={{ cursor: "pointer" }}
+              sx={{ cursor: "pointer", wordBreak: "break-word" }}
               onClick={() =>
                 setExpandedUser(expandedUser === user.id ? null : user.id)
               }
             >
-              {user.username} {/* show username in row */}
+              {user.username}
             </Typography>
 
-            <Box>
+            <Box
+              sx={{
+                display: "flex",
+                gap: 1,
+                flexWrap: "wrap", // buttons wrap on small screens
+                mt: { xs: 1, sm: 0 },
+              }}
+            >
               <IconButton color="primary" onClick={() => handleOpenEdit(user)}>
                 <EditIcon />
               </IconButton>
@@ -287,90 +330,90 @@ export default function StaffManagement() {
                   ? new Date(user.joining_date).toLocaleDateString()
                   : ""}
               </Typography>
-              <Typography>
-                Name Active: {user.active ? "true" : "false"}
-              </Typography>
+              <Typography>Active: {user.active ? "true" : "false"}</Typography>
             </Box>
           </Collapse>
         </Paper>
       ))}
 
       {/* Add/Edit Staff Dialog */}
-      <Dialog open={open} onClose={() => setOpen(false)}>
+      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>{isEditing ? "Edit Staff" : "Add Staff"}</DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            margin="dense"
-            label="Username"
-            value={formData.username}
-            onChange={(e) =>
-              setFormData({ ...formData, username: e.target.value })
-            }
-          />
-          <TextField
-            fullWidth
-            margin="dense"
-            label="Full Name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          />
-          <TextField
-            fullWidth
-            margin="dense"
-            label="Email"
-            value={formData.email}
-            onChange={(e) =>
-              setFormData({ ...formData, email: e.target.value })
-            }
-          />
-          <TextField
-            fullWidth
-            margin="dense"
-            label="Phone"
-            value={formData.phone}
-            onChange={(e) =>
-              setFormData({ ...formData, phone: e.target.value })
-            }
-          />
-          <TextField
-            fullWidth
-            margin="dense"
-            label="Role"
-            value={formData.role}
-            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-          />
-          <TextField
-            fullWidth
-            margin="dense"
-            label="Salary"
-            type="number"
-            value={formData.salary}
-            onChange={(e) =>
-              setFormData({ ...formData, salary: e.target.value })
-            }
-          />
-          <TextField
-            fullWidth
-            margin="dense"
-            label="Joining Date"
-            type="date"
-            InputLabelProps={{ shrink: true }}
-            value={formData.joining_date}
-            onChange={(e) =>
-              setFormData({ ...formData, joining_date: e.target.value })
-            }
-          />
-          <TextField
-            fullWidth
-            margin="dense"
-            label="Password"
-            type="password"
-            value={formData.password}
-            onChange={(e) =>
-              setFormData({ ...formData, password: e.target.value })
-            }
-          />
+        <DialogContent dividers>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+            <TextField
+              fullWidth
+              margin="dense"
+              label="Username"
+              value={formData.username}
+              onChange={(e) =>
+                setFormData({ ...formData, username: e.target.value })
+              }
+            />
+            <TextField
+              fullWidth
+              margin="dense"
+              label="Full Name"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            />
+            <TextField
+              fullWidth
+              margin="dense"
+              label="Email"
+              value={formData.email}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
+            />
+            <TextField
+              fullWidth
+              margin="dense"
+              label="Phone"
+              value={formData.phone}
+              onChange={(e) =>
+                setFormData({ ...formData, phone: e.target.value })
+              }
+            />
+            <TextField
+              fullWidth
+              margin="dense"
+              label="Role"
+              value={formData.role}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+            />
+            <TextField
+              fullWidth
+              margin="dense"
+              label="Salary"
+              type="number"
+              value={formData.salary}
+              onChange={(e) =>
+                setFormData({ ...formData, salary: e.target.value })
+              }
+            />
+            <TextField
+              fullWidth
+              margin="dense"
+              label="Joining Date"
+              type="date"
+              InputLabelProps={{ shrink: true }}
+              value={formData.joining_date}
+              onChange={(e) =>
+                setFormData({ ...formData, joining_date: e.target.value })
+              }
+            />
+            <TextField
+              fullWidth
+              margin="dense"
+              label="Password"
+              type="password"
+              value={formData.password}
+              onChange={(e) =>
+                setFormData({ ...formData, password: e.target.value })
+              }
+            />
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpen(false)} color="secondary">
